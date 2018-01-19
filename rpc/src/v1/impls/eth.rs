@@ -30,7 +30,7 @@ use parking_lot::Mutex;
 use ethash::SeedHashCompute;
 use ethcore::account_provider::{AccountProvider, DappId};
 use ethcore::block::IsBlock;
-use ethcore::client::{MiningBlockChainClient, BlockId, TransactionId, UncleId, StateOrBlock, StateClient, StateInfo, Call};
+use ethcore::client::{MiningBlockChainClient, BlockId, TransactionId, UncleId, StateOrBlock, StateClient, StateInfo, Call, EngineInfo};
 use ethcore::ethereum::Ethash;
 use ethcore::filter::Filter as EthcoreFilter;
 use ethcore::header::{Header as BlockHeader, BlockNumber as EthBlockNumber};
@@ -107,19 +107,25 @@ pub struct EthClient<C, SN: ?Sized, S: ?Sized, M, EM> where
 	eip86_transition: u64,
 }
 
-enum BlockOrId {
-	Block(::ethcore::encoded::Block),
+enum BlockNumberOrId {
+	Number(BlockNumber),
 	Id(BlockId),
 }
 
-impl From<BlockId> for BlockOrId {
-	fn from(value: BlockId) -> BlockOrId {
-		BlockOrId::Id(value)
+impl From<BlockId> for BlockNumberOrId {
+	fn from(value: BlockId) -> BlockNumberOrId {
+		BlockNumberOrId::Id(value)
+	}
+}
+
+impl From<BlockNumber> for BlockNumberOrId {
+	fn from(value: BlockNumber) -> BlockNumberOrId {
+		BlockNumberOrId::Number(value)
 	}
 }
 
 impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S, M, EM> where
-	C: MiningBlockChainClient + StateClient<State=T> + Call<State=T>,
+	C: MiningBlockChainClient + StateClient<State=T> + Call<State=T> + EngineInfo,
 	SN: SnapshotService,
 	S: SyncProvider,
 	M: MinerService<State=T>,
@@ -154,11 +160,28 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S
 		unwrap_provider(&self.accounts)
 	}
 
-	fn rich_block(&self, id: BlockOrId, include_txs: bool) -> Result<Option<RichBlock>> {
+	fn rich_block(&self, id: BlockNumberOrId, include_txs: bool) -> Result<Option<RichBlock>> {
 		let client = &self.client;
 		let (block, difficulty, extra) = match id {
-			BlockOrId::Id(id) => (client.block(id.clone()), client.block_total_difficulty(id), client.block_extra_info(id.clone())),
-			BlockOrId::Block(block) => (Some(block), Some(block.difficulty()), None),
+			BlockNumberOrId::Number(BlockNumber::Pending) => {
+				let info = self.client.chain_info();
+				let pending_block = self.miner.pending_block(info.best_block_number);
+				let difficulty = { 
+					let latest_difficulty = self.client.block_total_difficulty(BlockId::Latest).expect("blocks in chain have details; qed");
+					let pending_difficulty = self.miner.pending_block_header(info.best_block_number).map(|header| *header.difficulty());
+
+				 	if let Some(difficulty) = pending_difficulty {
+						difficulty + latest_difficulty
+					} else {
+						latest_difficulty
+					}
+				};
+				let extra = pending_block.map(|b| self.client.engine().extra_info(b.header));
+
+				(pending_block, Some(difficulty), extra)
+			},
+
+			BlockNumberOrId::Id(id) => (client.block(id).map(|b| b.decode()), client.block_total_difficulty(id), client.block_extra_info(id)),
 		};
 
 		match (block, difficulty) {
@@ -314,7 +337,7 @@ fn check_known<C>(client: &C, number: BlockNumber) -> Result<()> where C: Mining
 const MAX_QUEUE_SIZE_TO_MINE_ON: usize = 4;	// because uncles go back 6.
 
 impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<C, SN, S, M, EM> where
-	C: MiningBlockChainClient + StateClient<State=T> + Call<State=T> + 'static,
+	C: MiningBlockChainClient + StateClient<State=T> + Call<State=T> + EngineInfo + 'static,
 	SN: SnapshotService + 'static,
 	S: SyncProvider + 'static,
 	M: MinerService<State=T> + 'static,
