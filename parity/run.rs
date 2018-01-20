@@ -857,7 +857,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	}
 
 	// Handle exit
-	let restart = wait_for_exit(Some(updater), Some(client), can_restart);
+	let restart = (false, None);
 
 	info!("Finishing work, please wait...");
 
