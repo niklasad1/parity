@@ -3,18 +3,20 @@ name = "whisper-cli"
 version = "0.1.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
-[depencies]
+[dependencies]
+ethcore-network-devp2p = { path = "../../util/network-devp2p" }
+ethcore-network = { path = "../../util/network" }
+parity-whisper = { path = "../" }
 docopt = "0.8"
-env_logger = "0.4"
-ethkey = { path = "../" }
-panic_hook = { path = "../../util/panic_hook" }
-parity-wordlist="1.2"
-rustc-hex = "1.0"
 serde = "1.0"
 serde_derive = "1.0"
-threadpool = "1.7"
+
+jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.10" }
+jsonrpc-macros = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.10" }
+jsonrpc-pubsub = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.10" }
+jsonrpc-minihttp-server = { git = "https://github.com/paritytech/jsonrpc" }
 
 [[bin]]
-name = "whisper"
+name = "whisper-cli"
 path = "src/main.rs"
 doc = false
