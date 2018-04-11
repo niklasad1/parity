@@ -148,7 +148,7 @@ pub fn open_ui(ws_conf: &rpc::WsConfiguration, ui_conf: &rpc::UiConfiguration, l
 
 	let token = signer::generate_token_and_url(ws_conf, ui_conf, logger_config)?;
 	// Open a browser
-	url::open(&token.url);
+	url::open(&token.url).map_err(|e| format!("{}", e))?;
 	// Print a message
 	println!("{}", token.message);
 	Ok(())
@@ -160,10 +160,9 @@ pub fn open_dapp(dapps_conf: &dapps::Configuration, rpc_conf: &rpc::HttpConfigur
 	}
 
 	let url = format!("http://{}:{}/{}/", rpc_conf.interface, rpc_conf.port, dapp);
-	url::open(&url);
+	url::open(&url).map_err(|e| format!("{}", e))?;
 	Ok(())
 }
-
 // node info fetcher for the local store.
 struct FullNodeInfo {
 	miner: Option<Arc<Miner>>, // TODO: only TXQ needed, just use that after decoupling.
