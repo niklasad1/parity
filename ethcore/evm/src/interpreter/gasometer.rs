@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -369,4 +369,3 @@ fn test_calculate_mem_cost() {
 	assert_eq!(new_mem_gas, 3);
 	assert_eq!(mem_size, 32);
 }
-
